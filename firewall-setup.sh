@@ -1,17 +1,24 @@
-#!/usr/bin/bash
-which apt && {
-    echo "Apt Found!"
-    apt install --yes firewalld
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" &>/dev/null
 }
 
-which yum && {
-    echo "Yum Found!"
-    yum install -y firewalld
-}
+# Check and install Firewalld if not installed
+if ! command_exists firewall-cmd; then
+    echo "Firewall is not installed. Installing now..."
+    if command_exists apt; then
+        apt update && apt install -y firewalld
+    elif command_exists yum; then
+        yum install -y firewalld
+    else
+        echo "Package manager not found"
+        exit 1
+    fi
+fi
 
-systemctl enable --now firewalld
-
-echo "test"
+# Check Firewalld path and clear rules
 if [ -d /etc/firewalld/zones ]; then
     rm -rf /etc/firewalld/zones/*
     echo "Firewalld path is /etc/firewalld"
@@ -23,23 +30,20 @@ else
     exit 1
 fi
 
-firewall-cmd --complete-reload
-firewall-cmd --remove-service=ssh
-echo "Rules have been cleared and ssh has been removed"
-
-select opt in "ecomm" "web" "splunk" "dns" "mail" "workstation" "clear"; do
+# Function to add ports based on service type
+add_ports() {
     case $opt in
         "ecomm")
             echo "You chose ecomm"
             firewall-cmd --add-port=80/tcp
             firewall-cmd --add-port=3306/tcp
-            break
+            # Consider adding appropriate ports for an e-commerce service
             ;;
         "web")
             echo "You chose web"
             firewall-cmd --add-port=80/tcp
             firewall-cmd --add-port=3306/tcp
-            break
+            # Consider adding appropriate ports for a web service
             ;;
         "splunk")
             echo "You chose splunk"
@@ -47,7 +51,6 @@ select opt in "ecomm" "web" "splunk" "dns" "mail" "workstation" "clear"; do
             firewall-cmd --add-port=8865/tcp
             firewall-cmd --add-port=8000/tcp
             firewall-cmd --add-port=8191/tcp
-            break
             ;;
         "dns")
             echo "You chose dns"
@@ -57,7 +60,6 @@ select opt in "ecomm" "web" "splunk" "dns" "mail" "workstation" "clear"; do
             firewall-cmd --add-port=21/tcp
             firewall-cmd --add-port=953/tcp
             firewall-cmd --add-port=80/tcp
-            break
             ;;
         "mail")
             echo "You chose mail"
@@ -68,18 +70,29 @@ select opt in "ecomm" "web" "splunk" "dns" "mail" "workstation" "clear"; do
             firewall-cmd --add-port=25/tcp
             firewall-cmd --add-port=3306/tcp
             firewall-cmd --add-port=80/tcp
-            break
             ;;
         "workstation")
             echo "You chose workstation"
-            break
             ;;
         "clear")
             echo "You have cleared all firewall rules"
+            ;;
+        *)
+            echo "Invalid option selected"
+            ;;
+    esac
+}
+
+# Main script logic
+while true; do
+    read -rp "Choose an option (ecomm, web, splunk, dns, mail, workstation, clear): " opt
+    case $opt in
+        "ecomm"|"web"|"splunk"|"dns"|"mail"|"workstation"|"clear")
+            add_ports
             break
             ;;
         *)
-            echo "Invalid option"
+            echo "Invalid option selected. Please choose a valid option."
             ;;
     esac
 done
